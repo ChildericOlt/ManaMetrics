@@ -7,7 +7,7 @@ This script implements and compares multiple regression models for MTG card pric
 - Ridge Regression (Linear Baseline)
 
 Features:
-- SHAP integration for model interpretability
+- Interpretability integration via dedicated module
 - Binned MAPE evaluation (Bulk vs Mid vs High-end)
 - MLflow experiment tracking
 """
@@ -21,8 +21,8 @@ from sklearn.linear_model import Ridge
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from sklearn.preprocessing import LabelEncoder
-import shap
 import joblib
+from src.models.interpretability import run_shap_analysis
 import logging
 from typing import Dict, Tuple, Any, List
 from dataclasses import dataclass
@@ -167,29 +167,8 @@ def train_ridge(X_train: pd.DataFrame, y_train: np.ndarray) -> Ridge:
     return model
 
 
-# --- SHAP Analysis ---
-def run_shap_analysis(
-    model: Any, X_test: pd.DataFrame, model_name: str, output_dir: str
-) -> None:
-    """Generate SHAP summary plot for feature importance."""
-    logger.info(f"Running SHAP analysis for {model_name}...")
-    
-    try:
-        if isinstance(model, (xgb.XGBRegressor, RandomForestRegressor)):
-            explainer = shap.TreeExplainer(model)
-        else:
-            # For linear models like Ridge
-            explainer = shap.LinearExplainer(model, X_test)
-
-        shap_values = explainer.shap_values(X_test)
-
-        # Save SHAP values for later visualization
-        shap_output_path = os.path.join(output_dir, f"shap_values_{model_name}.npy")
-        np.save(shap_output_path, shap_values)
-        logger.info(f"SHAP values saved to {shap_output_path}")
-        
-    except Exception as e:
-        logger.warning(f"SHAP analysis failed for {model_name}: {e}")
+# --- Interpretability Analysis ---
+# SHAP analysis is now handled by src.models.interpretability module
 
 
 # --- Main Orchestration ---

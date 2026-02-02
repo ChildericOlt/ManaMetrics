@@ -10,7 +10,7 @@
 
 - **Multi-Modal AI**: Fusion of Transformer-based NLP (BERT) for rule text and Multi-Layer Perceptrons for game stats.
 - **Big Data Engineering**: Scalable ETL pipeline powered by **PySpark**.
-- **Explainable AI (XAI)**: Visual breakdown of price factors using **SHAP** and **Captum**.
+- **Explainable AI (XAI)**: Dedicated interpretability module with **SHAP** analysis and feature importance visualization.
 - **Full MLOps Lifecycle**: Experiment tracking with **MLflow** and data versioning with **DVC**.
 - **Interactive Showroom**: Real-time price inference via a **Streamlit** dashboard.
 
@@ -40,10 +40,13 @@ graph TD
 ## 📁 Project Structure
 
 - `data/`: Raw and processed datasets.
-- `models/`: Saved model binaries and weights.
-- `notebooks/`: Exploratory Data Analysis and Proof of Concepts.
-- `src/`: Modular source code (ETL, Modeling, Serving).
+- `models/`: Saved model binaries, weights, and SHAP analysis.
+- `src/`: Modular source code
+  - `data/`: ETL pipeline and API clients
+  - `models/`: Model architectures, training scripts, and interpretability
 - `tests/`: Automated unit and functional tests.
+- `manametrics.sh`: Unified command script for all operations.
+
 
 ```mermaid
 graph TD
@@ -128,63 +131,179 @@ Code quality is enforced using:
 - `pytest`: Automated testing
 
 ---
----
 ## 🛠️ Guide d'Utilisation : Entraînement de A à Z
 
 Ce guide détaille les étapes pour collecter les données, les transformer via le pipeline ETL, et lancer les modèles d'apprentissage.
 
-### 1. Préparation de l'Environnement
-Activez le venv et assurez-vous que `JAVA_HOME` pointe vers une installation Java valide (requise pour PySpark).
+### Script Unifié `manametrics.sh`
+
+Toutes les opérations peuvent maintenant être exécutées via un script bash unifié :
+
 ```bash
-source .venv_312/bin/activate
-# Sur Mac ARM (Homebrew), JAVA_HOME doit souvent être forcé :
-export JAVA_HOME=/opt/homebrew/opt/openjdk@11
-export PYTHONPATH=.
+# Afficher l'aide
+./manametrics.sh help
+
+# Vérifier l'environnement
+./manametrics.sh setup
+
+# Pipeline complet (recommandé pour démarrer)
+./manametrics.sh full
 ```
 
-### 2. Collecte des Données (`src/data/collect.py`)
+---
+
+## 🚀 Quick Start : Ordre Recommandé
+
+Voici l'ordre optimal pour démarrer avec ManaMetrics :
+
+### 1️⃣ Vérifier l'environnement et les tests
+```bash
+# Activer le venv
+.venv_312\Scripts\activate  # Windows
+source .venv_312/bin/activate  # Linux/Mac
+
+# Installer les dépendances si nécessaire
+pip install -r requirements.txt
+
+# Vérifier que tout fonctionne
+./manametrics.sh setup
+./manametrics.sh test
+```
+
+### 2️⃣ Récupérer les données
+```bash
+# Télécharger les cartes depuis Scryfall (peut prendre quelques minutes)
+./manametrics.sh collect oracle_cards
+
+# Transformer les données avec PySpark
+./manametrics.sh etl
+```
+
+### 3️⃣ Entraîner les modèles baseline ML
+```bash
+# XGBoost, Random Forest, Ridge - établir une baseline
+./manametrics.sh train-baseline
+
+# Analyser les résultats SHAP pour comprendre l'importance des features
+./manametrics.sh interpret
+```
+> 💡 **Pourquoi commencer par baseline ?** Les modèles ML classiques sont rapides à entraîner et donnent une référence de performance. Consultez les métriques RMSE et MAPE pour chaque modèle.
+
+### 4️⃣ Tester l'encodeur Deep Learning
+```bash
+# Fine-tuner DistilBERT sur le texte des cartes (3-5 epochs suffisent)
+./manametrics.sh train-deep 3
+```
+> 💡 **Pourquoi ensuite ?** Cela adapte BERT au vocabulaire Magic et permet de voir la contribution du texte seul.
+
+### 5️⃣ Entraîner le modèle Hybrid final
+```bash
+# Combiner texte (BERT) + statistiques (MLP) - 10 epochs recommandés
+./manametrics.sh train-hybrid 10
+```
+> 🎯 **Objectif final** : Le modèle hybrid devrait surpasser les baselines ML et le modèle deep seul en exploitant les deux modalités.
+
+### 6️⃣ Comparer les résultats
+Vérifiez dans `models/` :
+- `xgboost.joblib`, `random_forest.joblib`, `ridge.joblib` : Modèles baseline
+- `text_encoder.pt` : Encodeur BERT fine-tuné
+- `hybrid_model.pt` : Modèle multi-modal final
+- `shap_values_*.npy` : Valeurs SHAP pour interprétabilité
+- `feature_importance_report.md` : Rapport d'analyse des features
+
+---
+
+## 📖 Guide Détaillé
+
+
+### 1. Préparation de l'Environnement
+
+Activez le venv et assurez-vous que les dépendances sont installées :
+```bash
+# Windows
+.venv_312\Scripts\activate
+pip install -r requirements.txt
+
+# Linux/Mac
+source .venv_312/bin/activate
+pip install -r requirements.txt
+
+# Vérifier l'environnement
+./manametrics.sh setup
+```
+
+### 2. Collecte des Données
+
 Télécharge les données brutes depuis l'API Scryfall.
 ```bash
-# Téléchargement par défaut (Oracle Cards - Recommandé pour NLP)
-python3 src/data/collect.py --type oracle_cards
+# Via le script unifié (recommandé)
+./manametrics.sh collect oracle_cards
 
-# Pour des données plus complètes (toutes les impressions de chaque carte)
-python3 src/data/collect.py --type all_cards
+# Ou directement
+python src/data/collect.py --type oracle_cards
 
 # Options disponibles : oracle_cards, unique_artwork, default_cards, all_cards
 ```
 Les fichiers sont sauvegardés dans `data/raw/`.
 
-### 3. Pipeline ETL (`src/data/etl.py`)
+### 3. Pipeline ETL
+
 Transforme le JSON brut en format Parquet (Gold Layer) optimisé pour le ML via **PySpark**.
 ```bash
-python3 src/data/etl.py --input data/raw/oracle_cards.json --output data/processed/cards.parquet
+# Via le script unifié
+./manametrics.sh etl
+
+# Ou directement
+python src/data/etl.py --input data/raw/oracle_cards.json --output data/processed/cards.parquet
 ```
 - Effectue le nettoyage (Power/Toughness, prix NULL).
 - Feature Engineering (Devotion, Age de la carte, Type).
 - Génère automatiquement une documentation du dataset dans `data/processed/dataset_schema.md`.
 
-### 4. Orchestration de l'Entraînement (`src/train.py`)
-Utilisez ce script pour lancer les différentes phases de modélisation.
+### 4. Entraînement des Modèles
+
+Utilisez le script unifié ou `src/train.py` pour lancer les différentes phases de modélisation.
 
 ```bash
 # A. Étude comparative (XGBoost, Random Forest, Ridge)
-# Calcule les SHAP values et affiche un tableau récapitulatif.
-python3 src/train.py --baseline
+./manametrics.sh train-baseline
 
 # B. Fine-tuning NLP Standalone (BERT seul)
-# Pour entraîner l'encodeur de texte à "comprendre" le langage Magic.
-python3 src/train.py --deep --epochs 3
+./manametrics.sh train-deep 3
 
 # C. Modèle Hybride FINAL (Texte + Stats)
-# Entraîne la fusion multi-modale.
-python3 src/train.py --hybrid --epochs 10
+./manametrics.sh train-hybrid 10
 
-# D. Pipeline Complet
-python3 src/train.py --all
+# D. Pipeline Complet d'Entraînement
+./manametrics.sh train-all
 ```
 
-### 5. Analyse des Résultats
+Ou directement avec `train.py` :
+```bash
+python src/train.py --baseline
+python src/train.py --deep --epochs 3
+python src/train.py --hybrid --epochs 10
+python src/train.py --all
+```
+
+### 5. Tests
+
+Exécuter la suite de tests complète :
+```bash
+./manametrics.sh test
+# Ou directement :
+pytest tests/
+```
+
+### 6. Analyse d'Interprétabilité
+
+Générer les visualisations SHAP et rapports d'importance des features :
+```bash
+./manametrics.sh interpret
+```
+
+### 7. Analyse des Résultats
 - **Console** : Les métriques (RMSE, MAPE) sont affichées en temps réel.
 - **Fichiers Modèles** : `models/*.joblib` pour les baselines, `models/*.pt` pour PyTorch.
-- **Interprétabilité** : Les fichiers `models/shap_values_*.npy` peuvent être chargés dans un notebook pour visualiser l'importance des features.
+- **Interprétabilité** : Les fichiers `models/shap_values_*.npy` peuvent être chargés pour visualisation.
+- **Rapports** : `models/feature_importance_report.md` pour l'analyse des features.
