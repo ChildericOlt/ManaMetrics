@@ -45,6 +45,7 @@ graph TD
 - `src/`: Modular source code (ETL, Modeling, Serving).
 - `tests/`: Automated unit and functional tests.
 
+```mermaid
 graph TD
     Input[Raw Data: oracle_text + stats] --> TextPath[oracle_text]
     Input --> StatPath[cmc, rarity, power, toughness, devotion]
@@ -69,6 +70,8 @@ graph TD
         FMLP --> LogReg[log price regression]
         LogReg --> Final[expm1: price_usd_pred]
     end
+```
+
 ## 🧪 Methodology & Roadmap
 
 ### Phase 0: Data Engineering
